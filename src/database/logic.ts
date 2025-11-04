@@ -1,6 +1,10 @@
 import { Expr } from "@dldc/zendb";
 import type { ComponentDefinition } from "../references/definitions.ts";
-import { referenceId } from "../references/referenceId.ts";
+import {
+  computeNestedRefId,
+  computeTopLevelRefId,
+  referenceId,
+} from "../references/referenceId.ts";
 import type { RefKind } from "./database.ts";
 import { db, schema } from "./database.ts";
 
@@ -62,12 +66,9 @@ export async function saveDefs(
 
   // For nested declarations, use a deterministic ref ID based on parent + name
   if (parentRefId && parentRefId !== null) {
-    // Compute a consistent nested ref ID using SHA-256 hash
-    const encoder = new TextEncoder();
+    // Compute a consistent nested ref ID
     const defName = defsWithIds[0]?.name ?? "unknown";
-    const data = encoder.encode(`${parentRefId}\0${defName}`);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    refId = new Uint8Array(digest).toHex();
+    refId = await computeNestedRefId(parentRefId, defName);
   } else {
     // For top-level, use existing refId if one exists, otherwise compute deterministic one
     if (existingRefsIds.size === 1) {
@@ -78,11 +79,8 @@ export async function saveDefs(
       refId = mergeRefs(Array.from(existingRefsIds));
     } else {
       // No existing defs - compute deterministic ref ID from first def's name
-      const encoder = new TextEncoder();
       const defName = defsWithIds[0]?.name ?? "unknown";
-      const data = encoder.encode(defName);
-      const digest = await crypto.subtle.digest("SHA-256", data);
-      refId = new Uint8Array(digest).toHex();
+      refId = await computeTopLevelRefId(defName);
     }
   }
 

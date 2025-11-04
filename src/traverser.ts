@@ -13,7 +13,10 @@ import {
   getJsxTagNode,
   isValidJsxUsage,
 } from "./detection/jsx.ts";
-import { computeNestedRefId } from "./references/referenceId.ts";
+import {
+  computeNestedRefId,
+  computeTopLevelRefId,
+} from "./references/referenceId.ts";
 import type { Declaration } from "./types.ts";
 
 /**
@@ -53,11 +56,8 @@ export async function traverse(
     refName: string,
   ): Promise<string> {
     if (!parentRefId) {
-      // Top-level ref - still hash it for consistency
-      const encoder = new TextEncoder();
-      const data = encoder.encode(refName);
-      const digest = await crypto.subtle.digest("SHA-256", data);
-      return new Uint8Array(digest).toHex();
+      // Top-level ref - hash it for consistency
+      return await computeTopLevelRefId(refName);
     }
 
     // Create a unique key for this combination

@@ -1,7 +1,8 @@
-export async function referenceId(
-  filePath: string,
-  exportName: string,
-): Promise<string> {
+/**
+ * Hash one or more strings using SHA-256
+ * Uses NUL separator to avoid collisions like ("ab","c") vs ("a","bc")
+ */
+async function hashStrings(...parts: string[]): Promise<string> {
   if (!globalThis.crypto || !globalThis.crypto.subtle) {
     throw new Error(
       "Web Crypto API (crypto.subtle) is not available in this environment.",
@@ -9,10 +10,26 @@ export async function referenceId(
   }
 
   const encoder = new TextEncoder();
-  // Use a NUL separator to avoid collisions like ("ab","c") vs ("a","bc")
-  const data = encoder.encode(`${filePath}\0${exportName}`);
+  const joined = parts.join("\0");
+  const data = encoder.encode(joined);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return new Uint8Array(digest).toHex();
+}
+
+export async function referenceId(
+  filePath: string,
+  exportName: string,
+): Promise<string> {
+  return await hashStrings(filePath, exportName);
+}
+
+/**
+ * Compute a top-level ref ID by hashing the declaration name
+ */
+export async function computeTopLevelRefId(
+  refName: string,
+): Promise<string> {
+  return await hashStrings(refName);
 }
 
 /**
@@ -22,9 +39,5 @@ export async function computeNestedRefId(
   parentRefId: string,
   refName: string,
 ): Promise<string> {
-  const encoder = new TextEncoder();
-  // Use NUL separator to avoid collisions
-  const data = encoder.encode(`${parentRefId}\0${refName}`);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return new Uint8Array(digest).toHex();
+  return await hashStrings(parentRefId, refName);
 }
