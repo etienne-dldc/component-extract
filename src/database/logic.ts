@@ -58,60 +58,81 @@ export async function saveDefs(
 
   const existingRefsIds = new Set(existing.map((ref) => ref.refId));
 
-  const refId = existingRefsIds.size > 1
-    ? mergeRefs(Array.from(existingRefsIds))
-    : crypto.randomUUID();
+  let refId: string;
 
-  // Ensure or update the ref with the kind and parentRef
+  // For nested declarations, use a deterministic ref ID
+  if (parentRefId && parentRefId !== null) {
+    // Compute a consistent nested ref ID using SHA-256 hash
+    const encoder = new TextEncoder();
+    const defName = defsWithIds[0]?.name ?? "unknown";
+    const data = encoder.encode(`${parentRefId}\0${defName}`);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    refId = new Uint8Array(digest).toHex();
+  } else {
+    // For top-level, use existing refId if only one exists, otherwise merge or generate new
+    if (existingRefsIds.size === 1) {
+      // Reuse the single existing ref ID
+      refId = Array.from(existingRefsIds)[0];
+    } else if (existingRefsIds.size > 1) {
+      // Multiple existing refs - merge them
+      refId = mergeRefs(Array.from(existingRefsIds));
+    } else {
+      // No existing defs - generate new ref ID
+      refId = crypto.randomUUID();
+    }
+  }
+
+  // Ensure or update the ref with the kind
   const existingRef = db.exec(
     t.refs.query().andFilterEqual({ id: refId }).maybeOne(),
   );
   if (existingRef) {
     // Update the ref with kind if provided.
     // Never downgrade an existing component ref to a function.
-    const updateObj: { kind?: RefKind; parentRef?: string | null } = {};
     if (kind) {
       if (!existingRef.kind) {
         // No kind yet => set it
-        updateObj.kind = kind;
+        db.exec(
+          t.refs.updateEqual({ kind }, { id: refId }),
+        );
       } else if (existingRef.kind === kind) {
         // same kind => nothing to do
       } else if (existingRef.kind === "component" && kind === "function") {
         // don't transform a component into a function => skip
       } else {
         // other changes allowed (e.g. function -> component)
-        updateObj.kind = kind;
+        db.exec(
+          t.refs.updateEqual({ kind }, { id: refId }),
+        );
       }
     }
-    if (parentRefId !== undefined) {
-      updateObj.parentRef = parentRefId;
-    }
-    if (Object.keys(updateObj).length > 0) {
-      db.exec(
-        t.refs.updateEqual(updateObj, { id: refId }),
-      );
-    }
   } else {
-    // Create new ref with kind and parentRef
-    db.exec(
-      t.refs.insert({
-        id: refId,
-        kind: kind ?? null,
-        parentRef: parentRefId ?? null,
-      }),
-    );
+    // Create new ref with kind
+    db.exec(t.refs.insert({ id: refId, kind: kind ?? null }));
   }
 
-  // Insert new defs
+  // Insert new defs (deduplicate by def.id first)
+  const defsToInsert = new Map<string, typeof defsWithIds[0]>();
   for (const def of defsWithIds) {
     const isExisting = existing.find((e) => e.id === def.id);
-    if (!isExisting) {
+    if (!isExisting && !defsToInsert.has(def.id)) {
+      defsToInsert.set(def.id, def);
+    }
+  }
+
+  for (const def of defsToInsert.values()) {
+    // Double-check that this def doesn't already exist before insertion
+    const checkExists = db.exec(
+      t.defs.query().andFilterEqual({ id: def.id }).maybeOne(),
+    );
+    if (!checkExists) {
       db.exec(
         t.defs.insert({
           id: def.id,
           fileId: def.file.id,
           name: def.name,
           refId,
+          parentRefId: parentRefId ?? null,
         }),
       );
     }

@@ -53,7 +53,7 @@ export async function traverse(
     refName: string,
   ): Promise<string> {
     if (!parentRefId) {
-      // Top-level ref - return just the name
+      // Top-level ref - return just the name (will be hashed in saveDefs via referenceId)
       return refName;
     }
 
