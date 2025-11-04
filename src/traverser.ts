@@ -53,8 +53,11 @@ export async function traverse(
     refName: string,
   ): Promise<string> {
     if (!parentRefId) {
-      // Top-level ref - return just the name (will be hashed in saveDefs via referenceId)
-      return refName;
+      // Top-level ref - still hash it for consistency
+      const encoder = new TextEncoder();
+      const data = encoder.encode(refName);
+      const digest = await crypto.subtle.digest("SHA-256", data);
+      return new Uint8Array(digest).toHex();
     }
 
     // Create a unique key for this combination

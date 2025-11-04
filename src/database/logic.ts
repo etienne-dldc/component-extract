@@ -60,7 +60,7 @@ export async function saveDefs(
 
   let refId: string;
 
-  // For nested declarations, use a deterministic ref ID
+  // For nested declarations, use a deterministic ref ID based on parent + name
   if (parentRefId && parentRefId !== null) {
     // Compute a consistent nested ref ID using SHA-256 hash
     const encoder = new TextEncoder();
@@ -69,7 +69,7 @@ export async function saveDefs(
     const digest = await crypto.subtle.digest("SHA-256", data);
     refId = new Uint8Array(digest).toHex();
   } else {
-    // For top-level, use existing refId if only one exists, otherwise merge or generate new
+    // For top-level, use existing refId if one exists, otherwise compute deterministic one
     if (existingRefsIds.size === 1) {
       // Reuse the single existing ref ID
       refId = Array.from(existingRefsIds)[0];
@@ -77,8 +77,12 @@ export async function saveDefs(
       // Multiple existing refs - merge them
       refId = mergeRefs(Array.from(existingRefsIds));
     } else {
-      // No existing defs - generate new ref ID
-      refId = crypto.randomUUID();
+      // No existing defs - compute deterministic ref ID from first def's name
+      const encoder = new TextEncoder();
+      const defName = defsWithIds[0]?.name ?? "unknown";
+      const data = encoder.encode(defName);
+      const digest = await crypto.subtle.digest("SHA-256", data);
+      refId = new Uint8Array(digest).toHex();
     }
   }
 
