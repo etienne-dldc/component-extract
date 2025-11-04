@@ -18,6 +18,7 @@ const baseSchema = Schema.declare({
   refs: {
     id: Column.text().primary(),
     kind: Column.text<RefKind>().nullable(),
+    parentRef: Column.text().nullable(),
   },
   defs: {
     id: Column.text().primary(),

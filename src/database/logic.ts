@@ -1,6 +1,6 @@
 import { Expr } from "@dldc/zendb";
-import type { ComponentDefinition } from "../findComponentDefinitions.ts";
-import { referenceId } from "../referenceId.ts";
+import type { ComponentDefinition } from "../references/definitions.ts";
+import { referenceId } from "../references/referenceId.ts";
 import type { RefKind } from "./database.ts";
 import { db, schema } from "./database.ts";
 
@@ -36,6 +36,7 @@ export async function saveUsage(
 export async function saveDefs(
   defs: ComponentDefinition[],
   kind?: RefKind,
+  parentRefId?: string | null,
 ): Promise<string> {
   const defsWithIds = await Promise.all(
     defs.map(async (def) => {
@@ -61,33 +62,44 @@ export async function saveDefs(
     ? mergeRefs(Array.from(existingRefsIds))
     : crypto.randomUUID();
 
-  // Ensure or update the ref with the kind
+  // Ensure or update the ref with the kind and parentRef
   const existingRef = db.exec(
     t.refs.query().andFilterEqual({ id: refId }).maybeOne(),
   );
   if (existingRef) {
     // Update the ref with kind if provided.
     // Never downgrade an existing component ref to a function.
+    const updateObj: { kind?: RefKind; parentRef?: string | null } = {};
     if (kind) {
       if (!existingRef.kind) {
         // No kind yet => set it
-        db.exec(
-          t.refs.updateEqual({ kind }, { id: refId }),
-        );
+        updateObj.kind = kind;
       } else if (existingRef.kind === kind) {
         // same kind => nothing to do
       } else if (existingRef.kind === "component" && kind === "function") {
         // don't transform a component into a function => skip
       } else {
         // other changes allowed (e.g. function -> component)
-        db.exec(
-          t.refs.updateEqual({ kind }, { id: refId }),
-        );
+        updateObj.kind = kind;
       }
     }
+    if (parentRefId !== undefined) {
+      updateObj.parentRef = parentRefId;
+    }
+    if (Object.keys(updateObj).length > 0) {
+      db.exec(
+        t.refs.updateEqual(updateObj, { id: refId }),
+      );
+    }
   } else {
-    // Create new ref with kind
-    db.exec(t.refs.insert({ id: refId, kind: kind ?? null }));
+    // Create new ref with kind and parentRef
+    db.exec(
+      t.refs.insert({
+        id: refId,
+        kind: kind ?? null,
+        parentRef: parentRefId ?? null,
+      }),
+    );
   }
 
   // Insert new defs
