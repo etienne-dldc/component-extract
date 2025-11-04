@@ -4,7 +4,7 @@ import {
   Node,
   type SourceFile,
 } from "@ts-morph/ts-morph";
-import type { Element } from "./findComponents.ts";
+import type { TopLevelElement } from "./findTopLevelElements.ts";
 import { isComponentName } from "./isComponentName.ts";
 
 export interface UsedElement {
@@ -14,7 +14,7 @@ export interface UsedElement {
 
 export function findJsxUsagesByComponent(
   file: SourceFile,
-  elements: Element[],
+  elements: TopLevelElement[],
 ): Map<Node | null, UsedElement[]> {
   const resultMap = new Map<Node | null, UsedElement[]>();
 
@@ -25,7 +25,7 @@ export function findJsxUsagesByComponent(
   resultMap.set(null, []);
 
   // Find all JSX elements and determine which element they belong to
-  function traverse(node: Node, currentElement: Element | null): void {
+  function traverse(node: Node, currentElement: TopLevelElement | null): void {
     if (!node) return;
 
     function handleJsxTagNameExpression(tagNameNode: JsxTagNameExpression) {

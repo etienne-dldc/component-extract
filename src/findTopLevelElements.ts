@@ -4,7 +4,7 @@ import { getElementType } from "./getElementType.ts";
 import { isComponentName } from "./isComponentName.ts";
 import { isVariableValidComponent } from "./isVariableValidComponent.ts";
 
-export interface Element {
+export interface TopLevelElement {
   node: Node;
   identifier: Identifier;
   kind: RefKind | null;
@@ -14,8 +14,8 @@ export interface Element {
  * Find all top-level function/variable declarations
  * This includes functions, constants, and potential components
  */
-export function findComponents(file: SourceFile): Element[] {
-  const elements: Element[] = [];
+export function findTopLevelElements(file: SourceFile): TopLevelElement[] {
+  const elements: TopLevelElement[] = [];
 
   // Get all top-level declarations
   file.forEachChild((node) => {

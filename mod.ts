@@ -2,7 +2,7 @@ import { Project } from "@ts-morph/ts-morph";
 import { db } from "./src/database/database.ts";
 import { saveDefs, saveFile, saveUsage } from "./src/database/logic.ts";
 import { findComponentDefinitions } from "./src/findComponentDefinitions.ts";
-import { findComponents } from "./src/findComponents.ts";
+import { findTopLevelElements } from "./src/findComponents.ts";
 import { findJsxUsagesByComponent } from "./src/findJsxUsagesByComponent.ts";
 import { containsJsx } from "./src/getElementType.ts";
 
@@ -25,7 +25,7 @@ export async function extract({ tsConfigFilePath, databasePath }: TConfig) {
     console.log(`Analyzing file: ${dbFile.path}`);
 
     // First, find all elements (functions, constants, components) in the file
-    const elements = findComponents(file);
+    const elements = findTopLevelElements(file);
 
     // Then, find all JSX elements in the file and determine which element they belong to
     const jsxUsagesByElement = findJsxUsagesByComponent(file, elements);
