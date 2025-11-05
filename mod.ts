@@ -45,6 +45,8 @@ export async function extract({ tsConfigFilePath, databasePath }: TConfig) {
         compDefs,
         finalKind ?? undefined,
         parentRefId,
+        decl.location.startPos,
+        decl.location.endPos,
       );
     };
 
@@ -52,6 +54,8 @@ export async function extract({ tsConfigFilePath, databasePath }: TConfig) {
       identifierText: string,
       parentRefId: string | null,
       _kind: "jsx" | "call",
+      startPos: number,
+      endPos: number,
     ) => {
       // Find component definitions for this usage
       // We need to create a minimal definition object
@@ -64,6 +68,8 @@ export async function extract({ tsConfigFilePath, databasePath }: TConfig) {
         parentRefId,
         usageDefs,
         identifierText,
+        startPos,
+        endPos,
       );
     };
 

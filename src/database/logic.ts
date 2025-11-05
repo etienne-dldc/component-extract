@@ -15,8 +15,17 @@ export function saveFile(path: string) {
   if (exist) {
     return exist;
   }
+
+  // Read file content
+  let content: string | null = null;
+  try {
+    content = Deno.readTextFileSync(path);
+  } catch {
+    // If file cannot be read, continue without content
+  }
+
   const id = crypto.randomUUID();
-  return db.exec(t.files.insert({ id, path }));
+  return db.exec(t.files.insert({ id, path, content }));
 }
 
 export async function saveUsage(
@@ -24,6 +33,8 @@ export async function saveUsage(
   parentRefId: string | null,
   usageDefs: ComponentDefinition[],
   usedAs: string,
+  startPos: number | null = null,
+  endPos: number | null = null,
 ) {
   const refId = await saveDefs(usageDefs, "component");
   db.exec(
@@ -33,6 +44,8 @@ export async function saveUsage(
       parentRefId,
       fileId,
       usedAs,
+      startPos,
+      endPos,
     }),
   );
 }
@@ -41,6 +54,8 @@ export async function saveDefs(
   defs: ComponentDefinition[],
   kind?: RefKind,
   parentRefId?: string | null,
+  startPos: number | null = null,
+  endPos: number | null = null,
 ): Promise<string> {
   const defsWithIds = await Promise.all(
     defs.map(async (def) => {
@@ -135,6 +150,8 @@ export async function saveDefs(
           name: def.name,
           refId,
           parentRefId: parentRefId ?? null,
+          startPos,
+          endPos,
         }),
       );
     }

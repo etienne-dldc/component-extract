@@ -34,6 +34,8 @@ export type OnUsage = (
   identifier: string,
   parentRefId: string | null,
   kind: "jsx" | "call",
+  startPos: number,
+  endPos: number,
 ) => Promise<void>;
 
 /**
@@ -90,7 +92,13 @@ export async function traverse(
           const decl: Declaration = {
             identifier,
             kind,
-            location: { file, node, parent },
+            location: {
+              file,
+              node,
+              parent,
+              startPos: node.getStart(),
+              endPos: node.getEnd(),
+            },
             isTopLevel: parent === null,
           };
           pendingCallbacks.push(onDeclaration(decl, parentRefId));
@@ -123,7 +131,13 @@ export async function traverse(
             const decl: Declaration = {
               identifier: nameNode,
               kind,
-              location: { file, node, parent },
+              location: {
+                file,
+                node,
+                parent,
+                startPos: node.getStart(),
+                endPos: node.getEnd(),
+              },
               isTopLevel: parent === null,
             };
             pendingCallbacks.push(onDeclaration(decl, parentRefId));
@@ -139,7 +153,13 @@ export async function traverse(
             const decl: Declaration = {
               identifier: nameNode,
               kind,
-              location: { file, node, parent },
+              location: {
+                file,
+                node,
+                parent,
+                startPos: node.getStart(),
+                endPos: node.getEnd(),
+              },
               isTopLevel: parent === null,
             };
             pendingCallbacks.push(onDeclaration(decl, parentRefId));
@@ -161,7 +181,13 @@ export async function traverse(
       const identifier = extractIdentifierFromJsx(jsxTag);
       if (identifier) {
         pendingCallbacks.push(
-          onUsage(identifier.getText(), parentRefId, "jsx"),
+          onUsage(
+            identifier.getText(),
+            parentRefId,
+            "jsx",
+            jsxTag.getStart(),
+            jsxTag.getEnd(),
+          ),
         );
       }
     }
@@ -171,7 +197,13 @@ export async function traverse(
       const identifier = extractCallIdentifier(node);
       if (identifier) {
         pendingCallbacks.push(
-          onUsage(identifier.getText(), parentRefId, "call"),
+          onUsage(
+            identifier.getText(),
+            parentRefId,
+            "call",
+            node.getStart(),
+            node.getEnd(),
+          ),
         );
       }
     }

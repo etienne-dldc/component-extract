@@ -5,6 +5,8 @@ export interface Location {
   file: SourceFile;
   node: Node;
   parent: Node | null; // null for top-level
+  startPos: number;
+  endPos: number;
 }
 
 export interface Declaration {
