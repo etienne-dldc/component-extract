@@ -15,16 +15,16 @@ export type RefKind = "function" | "component" | "constant";
 
 const baseSchema = Schema.declare({
   files: {
-    id: Column.text().primary(),
+    id: Column.text().primary().defaultValue(() => crypto.randomUUID()),
     path: Column.text(),
     content: Column.text().nullable(),
   },
   refs: {
-    id: Column.text().primary(),
+    id: Column.text().primary().defaultValue(() => crypto.randomUUID()),
     kind: Column.json<RefKind[]>().defaultValue(() => []),
   },
   defs: {
-    id: Column.text().primary(),
+    id: Column.text().primary().defaultValue(() => crypto.randomUUID()),
     fileId: Column.text(),
     name: Column.text(),
     refId: Column.text(),
@@ -33,7 +33,7 @@ const baseSchema = Schema.declare({
     endPos: Column.integer().nullable(),
   },
   usages: {
-    id: Column.text().primary(),
+    id: Column.text().primary().defaultValue(() => crypto.randomUUID()),
     fileId: Column.text(),
     refId: Column.text(),
     parentRefId: Column.text().nullable(),
