@@ -8,6 +8,9 @@ import {
 } from "@dldc/zendb";
 import { DbSqliteDriver } from "@dldc/zendb-db-sqlite";
 
+/**
+ * TODO: add more kinds as needed
+ */
 export type RefKind = "function" | "component" | "constant";
 
 const baseSchema = Schema.declare({
@@ -18,7 +21,7 @@ const baseSchema = Schema.declare({
   },
   refs: {
     id: Column.text().primary(),
-    kind: Column.text<RefKind>().nullable(),
+    kind: Column.json<RefKind[]>().defaultValue(() => []),
   },
   defs: {
     id: Column.text().primary(),
