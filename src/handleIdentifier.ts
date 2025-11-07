@@ -1,6 +1,8 @@
 import type { Identifier, Symbol } from "@ts-morph/ts-morph";
 import { saveDef, saveRef, saveUsage } from "./database/logic.ts";
 
+const WARNING_ENABLED = false;
+
 export function handleIdentifierUsage(
   typeIdsMap: Map<Symbol, string>,
   fileId: string,
@@ -77,17 +79,23 @@ function getTypeSymbol(node: Identifier): Symbol | null {
   if (symbolsFromDefs.length === 1) {
     return symbolsFromDefs[0];
   }
+  const columnOffset = node.getPos() - node.getStartLinePos() + 1;
   if (symbolsFromDefs.length > 1) {
-    console.warn(
-      `  Identifier has multiple symbols from definitions: ${node.getText()}\n` +
-        `    in ${node.getSourceFile().getFilePath()}:${node.getStartLineNumber()}`,
-    );
+    if (WARNING_ENABLED) {
+      console.warn(
+        `  Identifier has multiple symbols from definitions: ${node.getText()}\n` +
+          `    in ${node.getSourceFile().getFilePath()}:${node.getStartLineNumber()}:${columnOffset}`,
+      );
+    }
     return null;
   }
 
-  console.warn(
-    `  Identifier has no symbol: ${node.getText()}\n` +
-      `    in ${node.getSourceFile().getFilePath()}:${node.getStartLineNumber()}`,
-  );
+  if (WARNING_ENABLED) {
+    console.warn(
+      `  Identifier has no symbol: ${node.getText()}\n` +
+        `    in ${node.getSourceFile().getFilePath()}:${node.getStartLineNumber()}:${columnOffset}`,
+    );
+  }
+
   return null;
 }

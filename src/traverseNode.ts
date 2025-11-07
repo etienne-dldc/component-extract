@@ -3,48 +3,9 @@ import {
   handleIdentifierDefinition,
   handleIdentifierUsage,
 } from "./handleIdentifier.ts";
+import { PASS_THROUGH_KINDS, SKIP_KINDS, STOP_KIND } from "./tokens.ts";
 
-const SKIP_KINDS = new Set([
-  SyntaxKind.StringLiteral,
-  SyntaxKind.EndOfFileToken,
-  // Skip type def for now
-  SyntaxKind.InterfaceDeclaration,
-  SyntaxKind.TypeReference,
-
-  SyntaxKind.JsxText,
-  SyntaxKind.JsxClosingElement,
-  SyntaxKind.EqualsGreaterThanToken,
-]);
-
-const PASS_THROUGH_KINDS = new Set([
-  SyntaxKind.ExpressionStatement,
-  SyntaxKind.CallExpression,
-  SyntaxKind.PropertyAccessExpression,
-  SyntaxKind.NonNullExpression,
-  SyntaxKind.JsxSelfClosingElement,
-  SyntaxKind.JsxAttributes,
-  SyntaxKind.ImportDeclaration,
-  SyntaxKind.ImportClause,
-  SyntaxKind.NamedImports,
-  SyntaxKind.ImportSpecifier,
-  SyntaxKind.NamespaceImport,
-  SyntaxKind.FirstStatement,
-  SyntaxKind.ExportKeyword,
-  SyntaxKind.VariableDeclarationList,
-  SyntaxKind.FunctionExpression,
-  SyntaxKind.Block,
-  SyntaxKind.ReturnStatement,
-  SyntaxKind.ParenthesizedExpression,
-  SyntaxKind.JsxElement,
-  SyntaxKind.JsxOpeningElement,
-  SyntaxKind.ArrowFunction,
-  SyntaxKind.ExportDeclaration,
-  SyntaxKind.NamedExports,
-]);
-
-const STOP_KIND: SyntaxKind | null = null;
-
-const COLLECTED_UNHANDLED_KINDS = new Set<SyntaxKind>();
+const COLLECTED_UNHANDLED_KINDS: Node[] = [];
 
 /**
  * Handle known node kinds.
@@ -58,7 +19,7 @@ export function traverseNode(
 ): void {
   if (node.getKind() === STOP_KIND) {
     throw new Error(
-      `Stopped traversal at node kind: SyntaxKind.${SyntaxKind[STOP_KIND!]}\n` +
+      `Stopped traversal at node kind: SyntaxKind.${node.getKindName()}\n` +
         `in ${node.getSourceFile().getFilePath()}:${node.getStartLineNumber()}`,
     );
   }
@@ -77,21 +38,18 @@ export function traverseNode(
   if (Node.isVariableDeclaration(node)) {
     const name = node.getNameNode();
     const initializer = node.getInitializer();
+    let nextParentRefId = parentRefId;
     if (Node.isIdentifier(name)) {
-      const nexParentRefId = handleIdentifierDefinition(
+      nextParentRefId = handleIdentifierDefinition(
         typeIdsMap,
         fileId,
         parentRefId,
         name,
       );
-      if (initializer) {
-        traverseNode(typeIdsMap, fileId, nexParentRefId, initializer);
-      }
-      return;
     }
     // For destructuring and other patterns, just traverse children
     if (initializer) {
-      traverseNode(typeIdsMap, fileId, parentRefId, initializer);
+      traverseChildren(typeIdsMap, fileId, nextParentRefId, initializer);
     }
     return;
   }
@@ -107,9 +65,7 @@ export function traverseNode(
         name,
       );
     }
-    node.forEachChild((child) =>
-      traverseNode(typeIdsMap, fileId, nextParentRefId, child)
-    );
+    traverseChildren(typeIdsMap, fileId, nextParentRefId, node, name);
     return;
   }
 
@@ -118,22 +74,41 @@ export function traverseNode(
     return;
   }
 
-  COLLECTED_UNHANDLED_KINDS.add(node.getKind());
-  if (COLLECTED_UNHANDLED_KINDS.size >= 10) {
-    const names = Array.from(COLLECTED_UNHANDLED_KINDS).map((kind) => {
-      return `SyntaxKind.${SyntaxKind[kind]},`;
-    }).join("\n  ");
-
-    console.error(
-      names,
-    );
-
+  COLLECTED_UNHANDLED_KINDS.push(node);
+  if (COLLECTED_UNHANDLED_KINDS.length >= 1) {
+    COLLECTED_UNHANDLED_KINDS.forEach((n) => {
+      const columnOffset = n.getPos() - n.getStartLinePos() + 1;
+      console.error(
+        `Unhandled node kind: SyntaxKind.${SyntaxKind[n.getKind()]}\n` +
+          `  in ${n.getSourceFile().getFilePath()}:${n.getStartLineNumber()}:${columnOffset}`,
+      );
+    });
     throw new Error(
-      `Unhandled node kinds`,
+      `Multiple unhandled node kinds collected.`,
     );
   }
 
-  node.forEachChild((child) =>
-    traverseNode(typeIdsMap, fileId, parentRefId, child)
-  );
+  traverseChildren(typeIdsMap, fileId, parentRefId, node);
+}
+
+/**
+ * @param typeIdsMap
+ * @param fileId
+ * @param parentRefId
+ * @param node
+ * @param nameNode Optional node to skip (e.g. the name of a declaration)
+ */
+export function traverseChildren(
+  typeIdsMap: Map<Symbol, string>,
+  fileId: string,
+  parentRefId: string | null,
+  node: Node,
+  nameNode?: Node,
+) {
+  node.forEachChild((child) => {
+    if (nameNode && child === nameNode) {
+      return;
+    }
+    traverseNode(typeIdsMap, fileId, parentRefId, child);
+  });
 }

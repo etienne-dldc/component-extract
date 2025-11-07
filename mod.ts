@@ -1,7 +1,7 @@
 import { Project, type Symbol } from "@ts-morph/ts-morph";
 import { db } from "./src/database/database.ts";
 import { saveFile } from "./src/database/logic.ts";
-import { traverseNode } from "./src/traverseNode.ts";
+import { traverseChildren } from "./src/traverseNode.ts";
 
 export interface TConfig {
   tsConfigFilePath: string;
@@ -25,9 +25,7 @@ export function extract({ tsConfigFilePath, databasePath }: TConfig) {
     const dbFile = saveFile(file.getFilePath());
     console.log(`Analyzing file: ${dbFile.path}`);
 
-    file.forEachChild((node) =>
-      traverseNode(typeIdsMap, dbFile.id, null, node)
-    );
+    traverseChildren(typeIdsMap, dbFile.id, null, file);
   }
 
   db.save(databasePath);
